@@ -1,23 +1,38 @@
 const commandLineArgs = require('command-line-args');
 const Promise = require('bluebird');
-var fs = require('fs');
-const fsAsync = Promise.promisifyAll(fs);
+const fs = Promise.promisifyAll(require('fs'));
+const jsonModifier = require('./jsonModifier');
 
 const optionDefinitions = [
   { name: 'file', alias: 'f', type: String},
-  { name: 'options', alias: 'o', type: String, multiple: true, defaultOption: true }
+  { name: 'changeset', alias: 'c', type: String, multiple: true, defaultOption: true }
 ]
 
 const options = commandLineArgs(optionDefinitions)
 
-fsAsync.readFileAsync(options['file'], 'utf8').then(function(data){
+
+
+if(options['file'] === undefined){
+    console.error('File path required')
+    process.exit(1);
+}
+
+if(options['changeset'] === undefined){
+    console.error('Changeset is required');
+    process.exit(1);
+}
+
+fs.readFileAsync(options['file'], 'utf8').then(function(data){
     var obj = JSON.parse(data);
-    for(var option of options['options']){
-        console.log(option);
-        var test = option.split('=');
-        obj[test[0]] = test[1];
+    for(var changeset of options['changeset']){
+        var change = changeset.split('=');
+        jsonModifier.modifyPropertyRecursive(obj, change[0], change[1]);
     }
-    return fsAsync.writeFileAsync(options['file'], JSON.stringify(obj));
+    return fs.writeFileAsync(options['file'], JSON.stringify(obj));
 }).then(function(result){
     console.log('All done!');
+    process.exit();
+}).catch(function(err){
+    console.error('An error occured: ' + err);
+    process.exit(1);
 })
