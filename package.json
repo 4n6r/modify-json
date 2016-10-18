@@ -1,0 +1,26 @@
+{
+  "name": "modify-json",
+  "version": "0.0.1",
+  "description": "Modify JSON files using the command line",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/4n6r/modify-json.git"
+  },
+  "keywords": [
+    "json"
+  ],
+  "author": "Sebastian Anger (anger.sebastian@gmail.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/4n6r/modify-json/issues"
+  },
+  "homepage": "https://github.com/4n6r/modify-json#readme",
+  "dependencies": {
+    "bluebird": "^3.4.6",
+    "command-line-args": "^3.0.1"
+  }
+}
