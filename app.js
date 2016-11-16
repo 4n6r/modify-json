@@ -1,38 +1,67 @@
+'use strict';
+
 const commandLineArgs = require('command-line-args');
 const Promise = require('bluebird');
 const fs = Promise.promisifyAll(require('fs'));
-const jsonModifier = require('./jsonModifier');
 
-const optionDefinitions = [
-  { name: 'file', alias: 'f', type: String},
-  { name: 'changeset', alias: 'c', type: String, multiple: true, defaultOption: true }
-]
+module.exports = modifyJson;
 
-const options = commandLineArgs(optionDefinitions)
-
-
-
-if(options['file'] === undefined){
-    console.error('File path required')
-    process.exit(1);
+function modifyJson(filename, changeset) {
+  this.filename = filename;
+  this.changeset = changeset;
 }
 
-if(options['changeset'] === undefined){
-    console.error('Changeset is required');
-    process.exit(1);
-}
-
-fs.readFileAsync(options['file'], 'utf8').then(function(data){
-    var obj = JSON.parse(data);
-    for(var changeset of options['changeset']){
-        var change = changeset.split('=');
-        jsonModifier.modifyPropertyRecursive(obj, change[0], change[1]);
+modifyJson.prototype.modifyProperty = function (obj, propName, val) {
+  return new Promise(function (resolve, reject) {
+    if (obj !== undefined && typeof obj === "object") {
+      if (obj[propName] !== undefined && typeof obj[propName] !== "object") {
+        obj[propName] = val;
+        resolve();
+      }
     }
-    return fs.writeFileAsync(options['file'], JSON.stringify(obj));
-}).then(function(result){
-    console.log('All done!');
-    process.exit();
-}).catch(function(err){
-    console.error('An error occured: ' + err);
-    process.exit(1);
-})
+  })
+}
+
+modifyJson.prototype.modifyChildProperty = function (obj, propNames, val) {
+  let that = this;
+  return new Promise(function (resolve, reject) {
+    if (propNames.length === 1) {
+      that.modifyProperty(obj, propNames[0], val).then(function(){
+        resolve();
+      })
+    } else {
+      var subItem = propNames.shift()
+      that.modifyChildProperty(obj[subItem], propNames, val).then(function(){
+        resolve();
+      })
+    }
+  });
+}
+
+modifyJson.prototype.modifyPropertyRecursive = function (obj, propNames, val) {
+  let that = this;
+  return new Promise(function(resolve, reject){
+    that.modifyChildProperty(obj, propNames.split("."), val).then(function(){
+      resolve(obj);
+    });
+  });
+}
+
+modifyJson.prototype.modify = function (callback) {
+  let that = this;
+  fs.readFileAsync(this.filename, 'utf8').then(function (data) {
+    let obj = JSON.parse(data);
+    let promises = [];
+    for (let changeset of that.changeset) {
+      var change = changeset.split('=');;
+      promises.push(that.modifyPropertyRecursive(obj, change[0], change[1]));
+    }
+    return Promise.all(promises);
+  }).then(function (obj) {
+    return fs.writeFileAsync(that.filename, JSON.stringify(obj))
+  }).then(function(){
+    callback(false);
+  }).catch(function(){
+    callback(true);
+  });
+}
